@@ -1,0 +1,373 @@
+---
+title: "KNN and Decision Tree"
+author: "3SD2 - Afina Latifa_Alwan Rahmana Subian_Giani Jovita Jane_Muhammad Azzam"
+date: '2023-03-03'
+output:
+  word_document: default
+  html_document: default
+---
+*KNN Algorithm*
+
+K-Nearest Neighbors (KNN) is a supervised machine learning algorithm used for classification and regression. The algorithm works by finding the K closest data points to a new input data point and predicting the output based on the majority class or average value of the K-nearest neighbors.
+
+In other words, given a new observation, the KNN algorithm identifies the K closest data points to that observation, based on a distance metric such as Euclidean distance. Then, it assigns the class label or regression value of the new observation based on the majority class or average value of the K-nearest neighbors.
+
+The value of K is a hyperparameter that needs to be determined before applying the algorithm. A smaller value of K makes the model more sensitive to noise in the data, while a larger value of K may oversmooth the decision boundary.
+
+Step 1: Load the Required Libraries
+The class library is usesd to call KNN function. The caTools library is used to split the train and test data. The haven library is used to insert the csv format to the RMarkdown file. The dplyr is used to manipulate data including filtering data. 
+```{r}
+library(haven)
+library(caTools)
+library(class)
+library(dplyr)
+```
+
+Step 2: Insert data from diabetes.csv
+```{r}
+data<-read.csv("C:/Users/Asus/Documents/MATERI KULIAH SEM 6/Data Mining/Tugas/Dataset Kelompok/Diabetes Prediction/diabetes.csv")
+head(data)
+
+is.na(data)
+#filtering the data, it exclude some unrealistic result which maybe come from nontechnical error
+
+data<-data %>% filter(Insulin!=0&BMI!=0&Glucose!=0&SkinThickness!=0&BloodPressure!=0)
+```
+
+```{r}
+data_1<-data %>% filter(Outcome==1)
+data_0<-data %>% filter(Outcome==0)
+
+print(paste('Jumlah data diabetes =',nrow(data_1)))
+print(paste('Jumlah data non-diabetes =',nrow(data_0)))
+```
+
+Step 3: We split into train and test dataset with function sample.split (0.7 for train data and 0.3 for test data). Before that, we set the seed with parameter 20230308
+```{r}
+#make this example reproducible
+set.seed(20230308)
+
+#use 70% of dataset as training set and 30% as test set
+sample <- sample.split(data, SplitRatio = 0.7)
+train  <- subset(data, sample == TRUE)
+test   <- subset(data, sample == FALSE)
+#See the i-first row of the data
+head(train)
+head(test)
+```
+
+Step 4: We normalize the data beacuse it contain multiscale variables.
+```{r}
+# Feature Scaling
+train_scale <- scale(train[,1:8])
+test_scale <- scale(test[,1:8])
+```
+
+Step 4: We build a KNN model using train_scale and test_scale data. After that, we make a Confusion matrix for the sake of model evaluation. The result shows that the model can classify the data very well with the shown accuracy.
+```{r}
+# Fitting KNN Model 
+# to training dataset
+classifier_knn <- knn(train = train_scale,
+                      test = test_scale,
+                      cl = train$Outcome,
+                      k = 3)
+  
+# Confusiin Matrix
+cm <- table(test$Outcome, classifier_knn)
+cm
+```
+
+To evaluate kNN, confusion matrix was made to find evaluation measures. The confusion matrix above shows that 72 non-diabetes patients were successfully identified, while the other 19 patients not. For the diabetes patients' data, 29 of them have were correct and the other 10 not. In other words, if the diabetes patients as the TRUE condition, there are 29 patients belong to the TP component, 72 patients belong to TN component, 10 patients belong to FP component, and 19 patients belong to FN component.Another conclusion that can be drawn is that the ratio between the TP and TN components are close to the ratio between the diabetes patients and non-diabetes patients indicates this learning could predict diabetes in patients quiet well.
+
+```{r}
+# Model Evaluation - Choosing K
+
+# Calculate out of Sample error
+misClassError <- mean(classifier_knn != test$Outcome)
+print(paste('Accuracy =', 1-misClassError))
+
+# Calculate recall, precision, and F1
+TP<-sum(classifier_knn==1&test$Outcome==1)
+FP<-sum(classifier_knn==1&test$Outcome==0)
+FN<-sum(classifier_knn==0&test$Outcome==1)
+
+recall<-TP/(TP+FN)
+print(paste('Recall =',recall))
+
+precision<-TP/(TP+FP)
+print(paste('Precision =',precision))
+
+F1<-(2*precision*recall)/(precision+recall)
+print(paste('F1 Score =',F1))
+```
+
+
+From this matrix, we can obtain some evaluation:
+
+1. Accuracy = 77.69%. model succeed to predict 77.69%  diabetes patient correctly out of all patient
+2. Precision = 74.36%. model succeed to predict 74.36%  diabetes patient correctly out of all predicted patient
+3. Recall = 60.42%. model succeed to predict 60.42%  diabetes patient correctly out of all diabetes patient
+4. F1 = 66.67%. the effectiveness of diabetes prediction is 66.67% by calculating harmonic average of precision and recall
+
+
+*DECISION TREE*
+
+A decision tree is a type of supervised machine learning algorithm used to predict the target variable (output) based on several input variables (features). It works by recursively splitting the data into smaller subsets based on the values of the input variables until a stopping criterion is reached. The result is a tree-like structure where each internal node represents a feature or input variable, each branch represents a value or range of values for that feature, and each leaf node represents a class or outcome.
+
+Step 1: Load the Required Libraries
+The rpart library is used to build decision trees in R, the rpart.plot library is used to plot the decision tree graphically, and the party library provides additional functions for decision trees.
+```{r}
+library(rpart)
+library(rpart.plot)
+library("party")
+```
+
+
+Step 2: Build the Decision Tree Model
+In this step, a decision tree model is built using the rpart() function. The formula Outcome ~ . specifies that the Outcome variable is the target variable, and all other variables in the train dataset should be used as predictors. The method parameter is set to "class" indicating that it is a classification problem.
+```{r}
+model<- rpart(Outcome ~ ., data=train,method="class")
+```
+
+Step 3: Summary of the Model
+This step prints a summary of the decision tree model. The summary provides information about the number of nodes, the complexity of the model, and the overall accuracy of the model.
+```{r}
+summary(model)
+```
+
+Step 4: Visualize the Decision Tree
+The prp() function is used to visualize the decision tree. The resulting plot provides a graphical representation of the decision tree model. It shows the variables used in the model, the split points, and the final outcome for each path through the tree.
+```{r}
+prp(model)
+```
+
+Step 5: Make Predictions
+In this step, the predict() function is used to generate predictions for the test dataset using the previously trained decision tree model. The type parameter is set to "class" indicating that the predictions should be categorical.
+```{r}
+# testing the people who are diabetes survivor and those who are not
+predict_model<-predict(model, test,type="class")
+```
+
+Step 6: Generate Confusion Matrix
+This step generates a confusion matrix that compares the predicted Outcome values with the actual values in the test dataset. The table() function is used to create a matrix of counts that shows the number of correct and incorrect predictions for each class.
+```{r}
+cnfs<-table(test$Outcome, predict_model)
+print(cnfs)
+```
+
+Step 7: Calculate Model Accuracy
+Finally, the accuracy of the model is calculated by dividing the sum of the diagonal values of the confusion matrix by the total number of predictions. The resulting value is a measure of how accurate the decision tree model is at predicting the Outcome variable.
+```{r}
+acc<-sum(diag(cnfs))/sum(cnfs)
+print(acc)
+
+# Calculate recall, precision, and F1
+TP<-sum(predict_model==1&test$Outcome==1)
+FP<-sum(predict_model==1&test$Outcome==0)
+FN<-sum(predict_model==0&test$Outcome==1)
+
+recall<-TP/(TP+FN)
+print(paste('Recall =',recall))
+
+precision<-TP/(TP+FP)
+print(paste('Precision =',precision))
+
+F1<-(2*precision*recall)/(precision+recall)
+print(paste('F1 Score =',F1))
+```
+
+Based on the resulting Decision Tree model, it can be concluded that a person is predicted to have diabetes if:
+1. Glucose less than 128, Insulin less or equal to 143, and age >29.
+2. Glucose more than 128, age > 24, and glucose > 166.
+3. Glucose more than 128, age > 24, glucose < 166, and BMI > 35
+4. Glucose more than 128, age > 24, glucose < 166, BMI < 35, and less than 4 pregnancies
+
+
+
+The accuracy rate of this prediction is 79.2%.
+Judging from the correctness of the prediction, out of 47 people who were predicted to have diabetes, it turned out that 13 of them were normal (FP=13). On the other hand, 14 out of 83 people who were predicted to be healthy actually had diabetes (TN=14).Therefore, it is not wrong if someone starts to be careful about diabetes. This conclusion were taken if the TRUE condition identified as diabetes patient.
+
+From this matrix, we can obtain some evaluation:
+
+1. Accuracy = 79.23%. model succeed to predict 79.23% diabetes patient correctly out of all patient
+2. Precision = 72.34%. model succeed to predict 72.34%  diabetes patient correctly out of all predicted patient
+3. Recall = 70.83%. model succeed to predict 70.83%  diabetes patient correctly out of all diabetes patient
+4. F1 = 71.57%. the effectiveness of diabetes prediction is 71.57% by calculating harmonic average of precision and recall
+
+
+*NAIVE BAYES*
+
+Naive Bayes is a machine learning algorithm that is commonly used for classification tasks. It is based on Bayes' theorem, which describes the probability of a hypothesis given some observed evidence.
+
+In the context of classification, Naive Bayes calculates the probability of a particular class label given a set of features or attributes that describe an instance. It does this by assuming that the features are conditionally independent of each other, which means that the presence or absence of one feature does not affect the likelihood of another feature being present or absent.
+
+There are several types of Naive Bayes classifiers, including the Gaussian Naive Bayes, Multinomial Naive Bayes, and Bernoulli Naive Bayes classifiers. The choice of classifier depends on the nature of the data and the assumptions made about the distribution of the features.
+
+Step 1: Load the necessary library and change the data type of outcome into factor. After that, build a model base on the train data. After the model built, we make a prediction based on the test data.
+```{r}
+#NAIVE BAYES
+library(naivebayes)
+train$Outcome<-as.factor(train$Outcome)
+nb_comp<-naive_bayes(Outcome~., data = train)
+
+#predict new object
+#predict_nb = predict(nb_comp)
+predict_model<-predict(nb_comp, test,type="class")
+```
+Step 2: We make a confusion matrix based on the model
+```{r}
+# Confusion Matrix
+cm <- table(test$Outcome, predict_model)
+cm
+```
+
+
+
+
+*RANDOM FOREST*
+```{r}
+#RANDOM FOREST
+
+# Load the randomForest package
+library(randomForest)
+
+# Build the random forest model
+model <- randomForest(Outcome~., train, ntree = 500, mtry = sqrt(ncol(train)), importance = TRUE)
+
+# Make predictions using the model
+predict_model <- predict(model, test)
+
+# View the variable importance measures
+varImpPlot(model)
+
+```
+
+
+Step 2: We make a confusion matrix based on the model
+```{r}
+# Confusion Matrix
+cm <- table(test$Outcome, predict_model)
+cm
+```
+Judging from the correctness of the prediction, out of 44 people who were predicted to have diabetes, it turned out that 10 of them were normal (FN=10). On the other hand, 14 out of 86 people who were predicted to be healthy actually had diabetes (TN=72). Therefore, it is not wrong if someone starts to be careful about diabetes.This conclusion were taken if the TRUE condition identified as diabetes patient. Another conclusion that can be drawn is that the ratio between the TP and TN components are close to the ratio between the diabetes patients and non-diabetes patients indicates this learning could predict diabetes in patients quiet well.
+
+Step 3: We calculate the evaluation score. There are certain techics to evaluate the model. First, we calculate the sample error. After getting the value, we do evaluate the model with some available methods like precision, recall, F-1 Score, and Accuracy.
+```{r}
+# Model Evaluation - Choosing K
+
+# Calculate out of Sample predictions
+misClassError <- mean(predict_model != test$Outcome)
+print(paste('Accuracy =', 1-misClassError))
+
+# Calculate recall, precision, and F1
+TP<-sum(predict_model==1&test$Outcome==1)
+FP<-sum(predict_model==1&test$Outcome==0)
+FN<-sum(predict_model==0&test$Outcome==1)
+
+
+recall<-TP/(TP+FN)
+print(paste('Recall =',recall))
+
+precision<-TP/(TP+FP)
+print(paste('Precision =',precision))
+
+F1<-(2*precision*recall)/(precision+recall)
+print(paste('F1 Score =',F1))
+```
+
+
+From this matrix, we can obtain some evaluation:
+
+1. Accuracy = 83.07%. model succeed to predict 83.07%  diabetes patient correctly out of all patient
+2. Precision = 82.5%. model succeed to predict 82.5%  diabetes patient correctly out of all predicted patient
+3. Recall = 68.75%. model succeed to predict 68.75%  diabetes patient correctly out of all diabetes patient
+4. F1 = 75%. the effectiveness of diabetes prediction is 75% by calculating harmonic average of precision and recall
+
+*SVM*
+```{r}
+#svm
+
+library(e1071)
+
+train[,9]<-as.factor(train[,9])
+test[,9]<-as.factor(test[,9])
+
+
+train <- data.frame(train)
+train_full_scale<-train
+train_full_scale[,1:8]<-scale(train_full_scale[,1:8])
+
+test_full_scale<-test
+test_full_scale[,1:8]<-scale(test_full_scale[,1:8])
+
+head(train_full_scale)
+head(test_full_scale)
+
+
+tuneGrid <- expand.grid(kernel = c("linear", "radial", "polynomial"),
+                        cost = c(0.1, 1, 10),
+                        gamma = c(0.1, 1, 10))
+```
+
+```{r}
+svm_tune_radial <- tune(svm, Outcome~., data = train_full_scale,ranges = list(kernel=tuneGrid$kernel,gamma = tuneGrid$gamma, cost = tuneGrid$gamma),tunecontrol = tune.control(sampling = "fix"))
+summary(svm_tune_radial)
+```
+
+```{r}
+
+#tune() gives us the tuned parameters, C and gamma
+
+# Make predictions using the model
+bestParam<-svm_tune_radial$best.parameters
+
+# Build the SVM model
+svm_model <- svm(Outcome~., train_full_scale, kernel = bestParam$kernel, cost = bestParam$cost, gamma = bestParam$gamma)
+predict_model <- predict(svm_model, test_full_scale)
+
+# View the model summary
+summary(predict_model)
+```
+
+
+Step 2: We make a confusion matrix based on the model
+```{r}
+# Confusion Matrix
+cm <- table(test_full_scale$Outcome, predict_model)
+cm
+```
+Judging from the correctness of the prediction, out of 44 people who were predicted to have diabetes, it turned out that 10 of them were normal (FN=10). On the other hand, 14 out of 86 people who were predicted to be healthy actually had diabetes (TN=72). Therefore, it is not wrong if someone starts to be careful about diabetes.This conclusion were taken if the TRUE condition identified as diabetes patient. Another conclusion that can be drawn is that the ratio between the TP and TN components are close to the ratio between the diabetes patients and non-diabetes patients indicates this learning could predict diabetes in patients quiet well.
+
+Step 3: We calculate the evaluation score. There are certain techics to evaluate the model. First, we calculate the sample error. After getting the value, we do evaluate the model with some available methods like precision, recall, F-1 Score, and Accuracy.
+```{r}
+# Model Evaluation - Choosing K
+
+# Calculate out of Sample predictions
+misClassError <- mean(predict_model != test_full_scale$Outcome)
+print(paste('Accuracy =', 1-misClassError))
+
+# Calculate recall, precision, and F1
+TP<-sum(predict_model==1&test_full_scale$Outcome==1)
+FP<-sum(predict_model==1&test_full_scale$Outcome==0)
+FN<-sum(predict_model==0&test_full_scale$Outcome==1)
+
+
+recall<-TP/(TP+FN)
+print(paste('Recall =',recall))
+
+precision<-TP/(TP+FP)
+print(paste('Precision =',precision))
+
+F1<-(2*precision*recall)/(precision+recall)
+print(paste('F1 Score =',F1))
+```
+
+
+From this matrix, we can obtain some evaluation:
+
+1. Accuracy = 83.07%. model succeed to predict 83.07%  diabetes patient correctly out of all patient
+2. Precision = 82.5%. model succeed to predict 82.5%  diabetes patient correctly out of all predicted patient
+3. Recall = 68.75%. model succeed to predict 68.75%  diabetes patient correctly out of all diabetes patient
+4. F1 = 75%. the effectiveness of diabetes prediction is 75% by calculating harmonic average of precision and recall
+
+
